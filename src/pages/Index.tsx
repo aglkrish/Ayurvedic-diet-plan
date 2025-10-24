@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, Plus, Search, FileText, Database, TrendingUp, Droplet, Moon, Sun, Activity } from 'lucide-react';
+import FoodSearch from '@/components/FoodSearch';
+import { Toaster } from 'sonner';
 
 const AyurvedicDietSystem = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -55,6 +57,15 @@ const AyurvedicDietSystem = () => {
       setPatients(updatedPatients);
     } catch (error) {
       console.error('Error saving patients to localStorage:', error);
+    }
+  };
+
+  const saveFoods = (updatedFoods) => {
+    try {
+      localStorage.setItem('foods', JSON.stringify(updatedFoods));
+      setFoods(updatedFoods);
+    } catch (error) {
+      console.error('Error saving foods to localStorage:', error);
     }
   };
 
@@ -689,9 +700,15 @@ const AyurvedicDietSystem = () => {
       food.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handleFoodAdded = (newFood) => {
+      saveFoods([...foods, newFood]);
+    };
+
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-foreground">Food Database</h2>
+        
+        <FoodSearch onFoodAdded={handleFoodAdded} />
         
         <div className="bg-card p-6 rounded-lg shadow-md border border-border">
           <div className="flex gap-4 mb-4">
@@ -759,6 +776,7 @@ const AyurvedicDietSystem = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
+      <Toaster position="top-right" richColors />
       <div className="bg-gradient-to-r from-primary to-secondary text-white p-6 shadow-lg">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold flex items-center gap-3">
