@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FoodSearchProps {
   onFoodAdded: (food: any) => void;
@@ -19,57 +20,30 @@ const FoodSearch = ({ onFoodAdded }: FoodSearchProps) => {
 
     setIsSearching(true);
     try {
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_LOVABLE_API_KEY || ''}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a nutritional database expert. When given a food name, return ONLY a JSON object with this exact structure (no additional text or explanation):
-{
-  "name": "Food Name",
-  "category": "one of: Grains, Pulses, Vegetables, Fruits, Dairy, Fats, Spices, Proteins, Nuts, Seeds",
-  "calories": number (per 100g),
-  "protein": number (grams per 100g),
-  "carbs": number (grams per 100g),
-  "fat": number (grams per 100g),
-  "fiber": number (grams per 100g),
-  "rasa": "one of: Sweet, Sour, Salty, Pungent, Bitter, Astringent",
-  "guna": "one of: Heavy, Light, Oily, Dry, Hot, Cold",
-  "virya": "Hot or Cold",
-  "vipaka": "Sweet, Sour, or Pungent",
-  "dosha": "brief description of dosha balancing effect"
-}
-
-Provide accurate nutritional values. If you don't have exact data, provide reasonable estimates based on similar foods.`
-            },
-            {
-              role: 'user',
-              content: `Provide nutritional information for: ${searchQuery}`
-            }
-          ]
-        })
+      const { data, error } = await supabase.functions.invoke('search-food', {
+        body: { foodName: searchQuery }
       });
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      
-      if (!content) {
-        throw new Error('No response from AI');
+      if (error) {
+        throw error;
       }
 
-      // Parse the JSON response
-      const foodData = JSON.parse(content.trim());
-      setSearchResult(foodData);
+      if (!data?.foodData) {
+        throw new Error('No food data received');
+      }
+
+      setSearchResult(data.foodData);
       toast.success('Food information found!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error searching food:', error);
-      toast.error('Could not find food information. Please try again.');
+      
+      if (error.message?.includes('Rate limit')) {
+        toast.error('Rate limit exceeded. Please try again in a moment.');
+      } else if (error.message?.includes('credits')) {
+        toast.error('AI credits exhausted. Please add credits to continue.');
+      } else {
+        toast.error('Could not find food information. Please try again.');
+      }
       setSearchResult(null);
     } finally {
       setIsSearching(false);
