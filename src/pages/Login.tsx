@@ -33,15 +33,18 @@ const LoginPage = () => {
       });
 
       if (signInData.user) {
-        login(type, {
-          id: signInData.user.id,
-          email: signInData.user.email,
-          name: credentials.name,
-          ...(type === 'doctor' && { licenseNumber: credentials.licenseNumber }),
-          ...(type === 'patient' && { patientId: credentials.patientId })
-        });
-        toast.success(`Welcome, ${credentials.name}!`);
-        return;
+        const userProfile = await fetchUserProfile(signInData.user.id);
+        if (userProfile) {
+          login(userProfile.user_type, {
+            id: userProfile.id,
+            email: userProfile.email,
+            name: userProfile.name,
+            ...(userProfile.user_type === 'doctor' && { licenseNumber: userProfile.license_number }),
+            ...(userProfile.user_type === 'patient' && { patientId: userProfile.patient_id })
+          });
+          toast.success(`Welcome, ${userProfile.name}!`);
+          return;
+        }
       }
 
       // If sign in fails, create account
@@ -61,14 +64,20 @@ const LoginPage = () => {
       if (error) throw error;
 
       if (data.user) {
-        login(type, {
-          id: data.user.id,
-          email: data.user.email,
-          name: credentials.name,
-          ...(type === 'doctor' && { licenseNumber: credentials.licenseNumber }),
-          ...(type === 'patient' && { patientId: credentials.patientId })
-        });
-        toast.success(`Demo account created! Welcome, ${credentials.name}!`);
+        // Wait for the trigger to create the user profile
+        setTimeout(async () => {
+          const userProfile = await fetchUserProfile(data.user.id);
+          if (userProfile) {
+            login(userProfile.user_type, {
+              id: userProfile.id,
+              email: userProfile.email,
+              name: userProfile.name,
+              ...(userProfile.user_type === 'doctor' && { licenseNumber: userProfile.license_number }),
+              ...(userProfile.user_type === 'patient' && { patientId: userProfile.patient_id })
+            });
+            toast.success(`Demo account created! Welcome, ${userProfile.name}!`);
+          }
+        }, 1000);
       }
     } catch (error: any) {
       console.error('Demo account error:', error);
@@ -104,8 +113,22 @@ const LoginPage = () => {
 
         if (error) throw error;
         
-        toast.success('Account created successfully! Please check your email to verify.');
-        setIsSignUp(false);
+        if (data.user) {
+          // Wait a moment for the trigger to create the user profile
+          setTimeout(async () => {
+            const userProfile = await fetchUserProfile(data.user.id);
+            if (userProfile) {
+              login(userType, {
+                id: userProfile.id,
+                email: userProfile.email,
+                name: userProfile.name,
+                ...(userType === 'doctor' && { licenseNumber: userProfile.license_number }),
+                ...(userType === 'patient' && { patientId: userProfile.patient_id })
+              });
+              toast.success('Account created successfully!');
+            }
+          }, 1000);
+        }
       } else {
         // Sign in logic
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -116,18 +139,20 @@ const LoginPage = () => {
         if (error) throw error;
 
         if (data.user) {
-          const userMetadata = data.user.user_metadata;
-          const actualUserType = userMetadata?.user_type || 'patient';
+          const userProfile = await fetchUserProfile(data.user.id);
           
-          login(actualUserType, {
-            id: data.user.id,
-            email: data.user.email,
-            name: userMetadata?.name || 'User',
-            ...(actualUserType === 'doctor' && { licenseNumber: userMetadata?.license_number }),
-            ...(actualUserType === 'patient' && { patientId: userMetadata?.patient_id })
-          });
-          
-          toast.success(`Welcome back, ${userMetadata?.name || 'User'}!`);
+          if (userProfile) {
+            login(userProfile.user_type, {
+              id: userProfile.id,
+              email: userProfile.email,
+              name: userProfile.name,
+              ...(userProfile.user_type === 'doctor' && { licenseNumber: userProfile.license_number }),
+              ...(userProfile.user_type === 'patient' && { patientId: userProfile.patient_id })
+            });
+            toast.success(`Welcome back, ${userProfile.name}!`);
+          } else {
+            toast.error('User profile not found. Please contact support.');
+          }
         }
       }
     } catch (error: any) {
@@ -135,6 +160,26 @@ const LoginPage = () => {
       toast.error(error.message || 'Authentication failed');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
     }
   };
 

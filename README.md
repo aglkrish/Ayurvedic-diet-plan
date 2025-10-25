@@ -64,13 +64,40 @@ cd Ayurvedic-diet-plan
 # Step 3: Install the necessary dependencies
 npm i
 
-# Step 4: Set up environment variables
+# Step 4: Set up Supabase Database
+
+You need to run the database migration to create the necessary tables. You can do this in two ways:
+
+## Option 1: Using Supabase Dashboard (Recommended)
+
+1. Go to your Supabase project dashboard
+2. Navigate to the SQL Editor
+3. Copy and paste the contents of `supabase/migrations/001_initial_schema.sql`
+4. Run the SQL script
+
+## Option 2: Using Supabase CLI
+
+```sh
+# Install Supabase CLI
+npm install -g supabase
+
+# Login to Supabase
+supabase login
+
+# Link your project
+supabase link --project-ref YOUR_PROJECT_REF
+
+# Run migrations
+supabase db push
+```
+
+# Step 5: Set up environment variables
 # Create a .env file with:
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 AI_API_KEY=your_openai_api_key
 
-# Step 5: Start the development server
+# Step 6: Start the development server
 npm run dev
 ```
 

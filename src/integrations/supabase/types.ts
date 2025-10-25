@@ -7,14 +7,175 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
-  }
   public: {
     Tables: {
-      [_ in never]: never
+      users: {
+        Row: {
+          id: string
+          email: string
+          name: string
+          user_type: 'doctor' | 'patient'
+          license_number: string | null
+          patient_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          name: string
+          user_type: 'doctor' | 'patient'
+          license_number?: string | null
+          patient_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          name?: string
+          user_type?: 'doctor' | 'patient'
+          license_number?: string | null
+          patient_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      patients: {
+        Row: {
+          id: number
+          user_id: string | null
+          name: string
+          email: string | null
+          age: number | null
+          gender: string | null
+          dosha: string | null
+          diet_type: string | null
+          meal_frequency: string | null
+          bowel_movement: string | null
+          water_intake: string | null
+          medical_history: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          user_id?: string | null
+          name: string
+          email?: string | null
+          age?: number | null
+          gender?: string | null
+          dosha?: string | null
+          diet_type?: string | null
+          meal_frequency?: string | null
+          bowel_movement?: string | null
+          water_intake?: string | null
+          medical_history?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          user_id?: string | null
+          name?: string
+          email?: string | null
+          age?: number | null
+          gender?: string | null
+          dosha?: string | null
+          diet_type?: string | null
+          meal_frequency?: string | null
+          bowel_movement?: string | null
+          water_intake?: string | null
+          medical_history?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      foods: {
+        Row: {
+          id: number
+          name: string
+          category: string
+          calories: number
+          protein: number
+          carbs: number
+          fat: number
+          fiber: number
+          rasa: string
+          guna: string
+          virya: string
+          vipaka: string
+          dosha: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          category: string
+          calories: number
+          protein: number
+          carbs: number
+          fat: number
+          fiber: number
+          rasa: string
+          guna: string
+          virya: string
+          vipaka: string
+          dosha: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          category?: string
+          calories?: number
+          protein?: number
+          carbs?: number
+          fat?: number
+          fiber?: number
+          rasa?: string
+          guna?: string
+          virya?: string
+          vipaka?: string
+          dosha?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      diet_charts: {
+        Row: {
+          id: number
+          patient_id: number
+          doctor_id: string
+          date: string
+          meals: Json
+          total_nutrients: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          patient_id: number
+          doctor_id: string
+          date: string
+          meals: Json
+          total_nutrients: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          patient_id?: number
+          doctor_id?: string
+          date?: string
+          meals?: Json
+          total_nutrients?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
