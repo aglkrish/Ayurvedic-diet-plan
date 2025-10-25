@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface User {
   id: string;
@@ -37,104 +36,48 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [userType, setUserType] = useState<'doctor' | 'patient' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
-    }
-  };
-
   useEffect(() => {
-    // Check for existing session
-    const checkSession = async () => {
+    // Check for existing session in localStorage
+    const checkLocalSession = () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          const userProfile = await fetchUserProfile(session.user.id);
-          
-          if (userProfile) {
-            setUser({
-              id: userProfile.id,
-              email: userProfile.email,
-              name: userProfile.name,
-              userType: userProfile.user_type,
-              ...(userProfile.user_type === 'doctor' && { licenseNumber: userProfile.license_number }),
-              ...(userProfile.user_type === 'patient' && { patientId: userProfile.patient_id })
-            });
-            setUserType(userProfile.user_type);
-          }
+        const storedUser = localStorage.getItem('ayurvedic_user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          setUserType(userData.userType);
         }
       } catch (error) {
-        console.error('Error checking session:', error);
+        console.error('Error checking local session:', error);
+        localStorage.removeItem('ayurvedic_user');
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          const userProfile = await fetchUserProfile(session.user.id);
-          
-          if (userProfile) {
-            setUser({
-              id: userProfile.id,
-              email: userProfile.email,
-              name: userProfile.name,
-              userType: userProfile.user_type,
-              ...(userProfile.user_type === 'doctor' && { licenseNumber: userProfile.license_number }),
-              ...(userProfile.user_type === 'patient' && { patientId: userProfile.patient_id })
-            });
-            setUserType(userProfile.user_type);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setUserType(null);
-        }
-        setIsLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    checkLocalSession();
   }, []);
 
   const login = (userType: 'doctor' | 'patient', userData: any) => {
-    setUser({
+    const userInfo = {
       id: userData.id,
       email: userData.email,
       name: userData.name,
       userType: userType,
       ...(userType === 'doctor' && { licenseNumber: userData.licenseNumber }),
       ...(userType === 'patient' && { patientId: userData.patientId })
-    });
+    };
+    
+    setUser(userInfo);
     setUserType(userType);
+    
+    // Store in localStorage for persistence
+    localStorage.setItem('ayurvedic_user', JSON.stringify(userInfo));
   };
 
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setUserType(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+  const logout = () => {
+    setUser(null);
+    setUserType(null);
+    localStorage.removeItem('ayurvedic_user');
   };
 
   const value = {

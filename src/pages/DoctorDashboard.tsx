@@ -85,7 +85,12 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
   };
 
   const addPatient = (patient) => {
-    const newPatient = { ...patient, id: Date.now() };
+    const newPatient = { 
+      ...patient, 
+      id: Date.now(),
+      email: patient.email || '',
+      created_at: new Date().toISOString()
+    };
     savePatients([...patients, newPatient]);
   };
 
@@ -133,7 +138,8 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
       meals: currentDiet.meals,
       totalNutrients,
       doctorId: user.id,
-      doctorName: user.name
+      doctorName: user.name,
+      created_at: new Date().toISOString()
     };
 
     saveDietCharts([...dietCharts, newChart]);

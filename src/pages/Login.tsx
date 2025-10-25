@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { User, Stethoscope, Eye, EyeOff, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 const LoginPage = () => {
@@ -16,69 +15,95 @@ const LoginPage = () => {
   const [licenseNumber, setLicenseNumber] = useState(''); // For doctors
   const [patientId, setPatientId] = useState(''); // For patients
 
+  // Simple local storage for users (fallback when Supabase is not configured)
+  const getStoredUsers = () => {
+    try {
+      const users = localStorage.getItem('ayurvedic_users');
+      return users ? JSON.parse(users) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const storeUser = (userData: any) => {
+    try {
+      const users = getStoredUsers();
+      const existingUserIndex = users.findIndex((u: any) => u.email === userData.email);
+      
+      if (existingUserIndex >= 0) {
+        users[existingUserIndex] = userData;
+      } else {
+        users.push(userData);
+      }
+      
+      localStorage.setItem('ayurvedic_users', JSON.stringify(users));
+    } catch (error) {
+      console.error('Error storing user:', error);
+    }
+  };
+
+  const findUser = (email: string, password: string) => {
+    const users = getStoredUsers();
+    return users.find((u: any) => u.email === email && u.password === password);
+  };
+
   const createDemoAccount = async (type: 'doctor' | 'patient') => {
     setIsLoading(true);
     try {
       const demoCredentials = {
-        doctor: { email: 'doctor@demo.com', password: 'password123', name: 'Dr. Sarah Johnson', licenseNumber: 'MD12345' },
-        patient: { email: 'patient@demo.com', password: 'password123', name: 'John Smith', patientId: 'PAT001' }
+        doctor: { 
+          email: 'doctor@demo.com', 
+          password: 'password123', 
+          name: 'Dr. Sarah Johnson', 
+          licenseNumber: 'MD12345' 
+        },
+        patient: { 
+          email: 'patient@demo.com', 
+          password: 'password123', 
+          name: 'John Smith', 
+          patientId: 'PAT001' 
+        }
       };
 
       const credentials = demoCredentials[type];
       
-      // Try to sign in first
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: credentials.email,
-        password: credentials.password
-      });
-
-      if (signInData.user) {
-        const userProfile = await fetchUserProfile(signInData.user.id);
-        if (userProfile) {
-          login(userProfile.user_type, {
-            id: userProfile.id,
-            email: userProfile.email,
-            name: userProfile.name,
-            ...(userProfile.user_type === 'doctor' && { licenseNumber: userProfile.license_number }),
-            ...(userProfile.user_type === 'patient' && { patientId: userProfile.patient_id })
-          });
-          toast.success(`Welcome, ${userProfile.name}!`);
-          return;
-        }
+      // Check if demo account already exists
+      const existingUser = findUser(credentials.email, credentials.password);
+      
+      if (existingUser) {
+        login(type, {
+          id: existingUser.id,
+          email: existingUser.email,
+          name: existingUser.name,
+          ...(type === 'doctor' && { licenseNumber: existingUser.licenseNumber }),
+          ...(type === 'patient' && { patientId: existingUser.patientId })
+        });
+        toast.success(`Welcome, ${existingUser.name}!`);
+        return;
       }
 
-      // If sign in fails, create account
-      const { data, error } = await supabase.auth.signUp({
+      // Create demo account
+      const newUser = {
+        id: Date.now().toString(),
         email: credentials.email,
         password: credentials.password,
-        options: {
-          data: {
-            user_type: type,
-            name: credentials.name,
-            ...(type === 'doctor' && { license_number: credentials.licenseNumber }),
-            ...(type === 'patient' && { patient_id: credentials.patientId })
-          }
-        }
+        name: credentials.name,
+        userType: type,
+        ...(type === 'doctor' && { licenseNumber: credentials.licenseNumber }),
+        ...(type === 'patient' && { patientId: credentials.patientId })
+      };
+
+      storeUser(newUser);
+      
+      login(type, {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        ...(type === 'doctor' && { licenseNumber: newUser.licenseNumber }),
+        ...(type === 'patient' && { patientId: newUser.patientId })
       });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Wait for the trigger to create the user profile
-        setTimeout(async () => {
-          const userProfile = await fetchUserProfile(data.user.id);
-          if (userProfile) {
-            login(userProfile.user_type, {
-              id: userProfile.id,
-              email: userProfile.email,
-              name: userProfile.name,
-              ...(userProfile.user_type === 'doctor' && { licenseNumber: userProfile.license_number }),
-              ...(userProfile.user_type === 'patient' && { patientId: userProfile.patient_id })
-            });
-            toast.success(`Demo account created! Welcome, ${userProfile.name}!`);
-          }
-        }, 1000);
-      }
+      
+      toast.success(`Demo account created! Welcome, ${newUser.name}!`);
     } catch (error: any) {
       console.error('Demo account error:', error);
       toast.error(error.message || 'Failed to create demo account');
@@ -97,62 +122,76 @@ const LoginPage = () => {
     setIsLoading(true);
     try {
       if (isSignUp) {
-        // Sign up logic
-        const { data, error } = await supabase.auth.signUp({
+        // Validate required fields for signup
+        if (!name) {
+          toast.error('Please enter your name');
+          return;
+        }
+        
+        if (userType === 'doctor' && !licenseNumber) {
+          toast.error('Please enter your license number');
+          return;
+        }
+        
+        if (userType === 'patient' && !patientId) {
+          toast.error('Please enter your patient ID');
+          return;
+        }
+
+        // Check if user already exists
+        const users = getStoredUsers();
+        const existingUser = users.find((u: any) => u.email === email);
+        
+        if (existingUser) {
+          toast.error('An account with this email already exists');
+          return;
+        }
+
+        // Create new user
+        const newUser = {
+          id: Date.now().toString(),
           email,
           password,
-          options: {
-            data: {
-              user_type: userType,
-              name: name,
-              ...(userType === 'doctor' && { license_number: licenseNumber }),
-              ...(userType === 'patient' && { patient_id: patientId })
-            }
-          }
-        });
+          name,
+          userType,
+          ...(userType === 'doctor' && { licenseNumber }),
+          ...(userType === 'patient' && { patientId })
+        };
 
-        if (error) throw error;
+        storeUser(newUser);
         
-        if (data.user) {
-          // Wait a moment for the trigger to create the user profile
-          setTimeout(async () => {
-            const userProfile = await fetchUserProfile(data.user.id);
-            if (userProfile) {
-              login(userType, {
-                id: userProfile.id,
-                email: userProfile.email,
-                name: userProfile.name,
-                ...(userType === 'doctor' && { licenseNumber: userProfile.license_number }),
-                ...(userType === 'patient' && { patientId: userProfile.patient_id })
-              });
-              toast.success('Account created successfully!');
-            }
-          }, 1000);
-        }
+        login(userType, {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name,
+          ...(userType === 'doctor' && { licenseNumber: newUser.licenseNumber }),
+          ...(userType === 'patient' && { patientId: newUser.patientId })
+        });
+        
+        toast.success('Account created successfully!');
+        
+        // Reset form
+        setEmail('');
+        setPassword('');
+        setName('');
+        setLicenseNumber('');
+        setPatientId('');
+        setIsSignUp(false);
       } else {
         // Sign in logic
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) throw error;
-
-        if (data.user) {
-          const userProfile = await fetchUserProfile(data.user.id);
-          
-          if (userProfile) {
-            login(userProfile.user_type, {
-              id: userProfile.id,
-              email: userProfile.email,
-              name: userProfile.name,
-              ...(userProfile.user_type === 'doctor' && { licenseNumber: userProfile.license_number }),
-              ...(userProfile.user_type === 'patient' && { patientId: userProfile.patient_id })
-            });
-            toast.success(`Welcome back, ${userProfile.name}!`);
-          } else {
-            toast.error('User profile not found. Please contact support.');
-          }
+        const user = findUser(email, password);
+        
+        if (user) {
+          login(user.userType, {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            ...(user.userType === 'doctor' && { licenseNumber: user.licenseNumber }),
+            ...(user.userType === 'patient' && { patientId: user.patientId })
+          });
+          toast.success(`Welcome back, ${user.name}!`);
+        } else {
+          toast.error('Invalid email or password');
         }
       }
     } catch (error: any) {
@@ -160,26 +199,6 @@ const LoginPage = () => {
       toast.error(error.message || 'Authentication failed');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
     }
   };
 
@@ -376,7 +395,7 @@ const LoginPage = () => {
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-2 text-center">
-              Demo accounts will be created automatically if they don't exist
+              Demo accounts will be created automatically
             </p>
           </div>
         </div>
