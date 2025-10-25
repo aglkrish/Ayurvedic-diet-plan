@@ -1,14 +1,38 @@
 # Ayurvedic Diet Management System
 
-A comprehensive web application for managing Ayurvedic diet plans, patient records, and food databases based on traditional Ayurvedic principles.
+A comprehensive web application for managing Ayurvedic diet plans with separate portals for doctors and patients. Doctors can create personalized diet charts for their patients, while patients can view their assigned diet plans.
 
 ## Features
 
+### Doctor Portal
 - **Patient Management**: Register and manage patient profiles with dosha types and dietary preferences
 - **Diet Chart Creation**: Create personalized diet plans based on Ayurvedic principles
 - **Food Database**: Comprehensive database of foods with nutritional and Ayurvedic properties
 - **Smart Recommendations**: AI-powered food suggestions based on patient dosha and health conditions
 - **Dashboard**: Overview of patients, diet charts, and food database statistics
+
+### Patient Portal
+- **Diet Plan Viewing**: View assigned diet plans with detailed nutritional information
+- **Meal Tracking**: See daily meal plans organized by meal times
+- **Ayurvedic Guidelines**: Access personalized Ayurvedic eating recommendations
+- **Progress Tracking**: Monitor assigned diet plans and nutritional goals
+
+## Authentication System
+
+The application features a dual login system:
+
+### User Types
+- **Doctors**: Can manage patients and create diet charts
+- **Patients**: Can view their assigned diet plans
+
+### Demo Accounts
+For quick testing, use the demo accounts:
+- **Doctor**: Click "Demo Doctor" button (auto-creates account)
+- **Patient**: Click "Demo Patient" button (auto-creates account)
+
+### Registration
+- Doctors need: Name, Email, Password, License Number
+- Patients need: Name, Email, Password, Patient ID
 
 ## Technologies Used
 
@@ -17,13 +41,16 @@ A comprehensive web application for managing Ayurvedic diet plans, patient recor
 - React
 - shadcn-ui
 - Tailwind CSS
-- Supabase (for backend services)
+- Supabase (Authentication & Backend)
+- OpenAI API (Food Search)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Supabase account for authentication
+- OpenAI API key for food search functionality
 
 ### Installation
 
@@ -37,16 +64,29 @@ cd Ayurvedic-diet-plan
 # Step 3: Install the necessary dependencies
 npm i
 
-# Step 4: Start the development server
+# Step 4: Set up environment variables
+# Create a .env file with:
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+AI_API_KEY=your_openai_api_key
+
+# Step 5: Start the development server
 npm run dev
 ```
 
 ## Usage
 
-1. **Register Patients**: Add patient information including dosha type, dietary preferences, and medical history
-2. **Create Diet Charts**: Select foods based on Ayurvedic principles and patient needs
-3. **Manage Food Database**: Add new foods with nutritional and Ayurvedic properties
-4. **View Dashboard**: Monitor system statistics and recent activity
+### For Doctors
+1. **Login**: Use doctor credentials or click "Demo Doctor"
+2. **Register Patients**: Add patient information including dosha type and medical history
+3. **Create Diet Charts**: Select foods based on Ayurvedic principles and patient needs
+4. **Manage Food Database**: Add new foods with nutritional and Ayurvedic properties
+
+### For Patients
+1. **Login**: Use patient credentials or click "Demo Patient"
+2. **View Dashboard**: See overview of assigned diet plans
+3. **Browse Diet Plans**: Click on any diet plan to see detailed meal information
+4. **Follow Guidelines**: Access Ayurvedic eating recommendations
 
 ## Ayurvedic Principles
 
