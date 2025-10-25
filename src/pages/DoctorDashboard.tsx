@@ -134,6 +134,7 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
       patientId: selectedPatient.id,
       patientName: selectedPatient.name,
       patientEmail: selectedPatient.email || '',
+      patientIdNumber: selectedPatient.patientId || selectedPatient.id, // For matching with patient login
       date: new Date().toLocaleDateString(),
       meals: currentDiet.meals,
       totalNutrients,

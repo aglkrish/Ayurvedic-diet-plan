@@ -10,6 +10,7 @@ interface PatientDashboardProps {
 const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
   const [dietCharts, setDietCharts] = useState([]);
   const [selectedChart, setSelectedChart] = useState(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
     const loadDietCharts = () => {
@@ -17,11 +18,11 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
         const chartsData = localStorage.getItem('dietCharts');
         if (chartsData) {
           const allCharts = JSON.parse(chartsData);
-          // Filter charts for this patient
+          // Filter charts for this patient by name or patient ID
           const patientCharts = allCharts.filter(chart => 
-            chart.patientId === user.patientId || 
+            chart.patientName === user.name || 
             chart.patientEmail === user.email ||
-            chart.patientName === user.name
+            chart.patientIdNumber === user.patientId
           );
           setDietCharts(patientCharts);
         }
@@ -56,6 +57,62 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
     if (dosha.includes('Kapha')) return 'text-green-600 bg-green-50';
     return 'text-gray-600 bg-gray-50';
   };
+
+  const DietPlansList = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-foreground">My Diet Plans</h2>
+        <div className="bg-accent px-4 py-2 rounded border border-border">
+          <p className="text-sm text-muted-foreground">Total Plans: <span className="font-semibold text-accent-foreground">{dietCharts.length}</span></p>
+        </div>
+      </div>
+
+      {dietCharts.length === 0 ? (
+        <div className="text-center py-12">
+          <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground text-lg">No diet plans assigned yet</p>
+          <p className="text-muted-foreground text-sm mt-2">Your doctor will create personalized diet plans for you</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {dietCharts.map(chart => (
+            <div 
+              key={chart.id} 
+              className="bg-card p-6 rounded-lg shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => setSelectedChart(chart)}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-primary/10 p-2 rounded">
+                  <Calendar className="w-5 h-5 text-primary" />
+                </div>
+                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                  {chart.meals.length} meals
+                </span>
+              </div>
+              
+              <h3 className="font-semibold text-lg text-foreground mb-2">{chart.date}</h3>
+              <p className="text-sm text-muted-foreground mb-3">By Dr. {chart.doctorName}</p>
+              
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-blue-50 p-2 rounded text-center">
+                  <p className="text-blue-600 font-semibold">{chart.totalNutrients.calories.toFixed(0)}</p>
+                  <p className="text-xs text-blue-600">Calories</p>
+                </div>
+                <div className="bg-green-50 p-2 rounded text-center">
+                  <p className="text-green-600 font-semibold">{chart.totalNutrients.protein.toFixed(1)}g</p>
+                  <p className="text-xs text-green-600">Protein</p>
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-border">
+                <p className="text-xs text-muted-foreground">Click to view details</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   const Dashboard = () => (
     <div className="space-y-6">
@@ -92,7 +149,17 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
       </div>
 
       <div className="bg-card p-6 rounded-lg shadow-md border border-border">
-        <h3 className="text-xl font-semibold mb-4 text-card-foreground">Recent Diet Plans</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-semibold text-card-foreground">Recent Diet Plans</h3>
+          {dietCharts.length > 0 && (
+            <button
+              onClick={() => setActiveTab('dietPlans')}
+              className="text-primary hover:underline text-sm font-medium"
+            >
+              View All ({dietCharts.length})
+            </button>
+          )}
+        </div>
         {dietCharts.length === 0 ? (
           <div className="text-center py-8">
             <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
@@ -101,11 +168,14 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
           </div>
         ) : (
           <div className="space-y-3">
-            {dietCharts.slice(-5).reverse().map(chart => (
+            {dietCharts.slice(-3).reverse().map(chart => (
               <div 
                 key={chart.id} 
                 className="flex items-center justify-between p-4 bg-muted rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                onClick={() => setSelectedChart(chart)}
+                onClick={() => {
+                  setSelectedChart(chart);
+                  setActiveTab('dietPlans');
+                }}
               >
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 p-2 rounded">
@@ -152,7 +222,10 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
             <p className="text-muted-foreground">Created on {selectedChart.date} by Dr. {selectedChart.doctorName}</p>
           </div>
           <button
-            onClick={() => setSelectedChart(null)}
+            onClick={() => {
+              setSelectedChart(null);
+              setActiveTab('dietPlans');
+            }}
             className="bg-muted text-muted-foreground px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
           >
             Back to List
@@ -292,22 +365,30 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
         <div className="bg-card rounded-lg shadow-md mb-6 border border-border">
           <div className="flex border-b border-border overflow-x-auto">
             <button
-              onClick={() => setSelectedChart(null)}
-              className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${!selectedChart ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
+              onClick={() => {
+                setActiveTab('dashboard');
+                setSelectedChart(null);
+              }}
+              className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${activeTab === 'dashboard' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
             >
               Dashboard
             </button>
             <button
-              onClick={() => selectedChart && setSelectedChart(null)}
-              className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${selectedChart ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
+              onClick={() => {
+                setActiveTab('dietPlans');
+                setSelectedChart(null);
+              }}
+              className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${activeTab === 'dietPlans' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
             >
-              Diet Plans
+              Diet Plans ({dietCharts.length})
             </button>
           </div>
         </div>
 
         <div>
-          {!selectedChart ? <Dashboard /> : <DietPlanView />}
+          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'dietPlans' && <DietPlansList />}
+          {selectedChart && <DietPlanView />}
         </div>
       </div>
     </div>
