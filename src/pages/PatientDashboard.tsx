@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, FileText, LogOut, Heart, Clock, TrendingUp, Activity } from 'lucide-react';
-import { Toaster } from 'sonner';
+import { User, Calendar, FileText, LogOut, Heart, Clock, TrendingUp, Activity, CreditCard, DollarSign, CheckCircle } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
 
 interface PatientDashboardProps {
   user: any;
@@ -12,6 +12,7 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
   const [selectedChart, setSelectedChart] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [progressEntries, setProgressEntries] = useState([]);
+  const [payments, setPayments] = useState([]);
 
   useEffect(() => {
     const loadDietCharts = () => {
@@ -43,8 +44,26 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
       }
     };
 
+    const loadPayments = () => {
+      try {
+        const paymentsData = localStorage.getItem('payments');
+        if (paymentsData) {
+          const allPayments = JSON.parse(paymentsData);
+          const patientPayments = allPayments.filter(p => 
+            p.patientId === user.patientId || 
+            p.patientId === user.id ||
+            p.patientEmail === user.email
+          );
+          setPayments(patientPayments);
+        }
+      } catch (error) {
+        console.error('Error loading payments:', error);
+      }
+    };
+
     loadDietCharts();
     loadProgress();
+    loadPayments();
   }, [user]);
 
   const getMealTimeIcon = (mealType: string) => {
@@ -415,6 +434,261 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
     );
   };
 
+  const PaymentSection = () => {
+    const [showPaymentForm, setShowPaymentForm] = useState(false);
+    const [paymentData, setPaymentData] = useState({
+      amount: '',
+      cardNumber: '',
+      cardHolder: '',
+      expiryDate: '',
+      cvv: '',
+      doctorName: '',
+      service: 'Diet Consultation'
+    });
+
+    const handlePayment = (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Simple validation
+      if (!paymentData.amount || parseFloat(paymentData.amount) <= 0) {
+        toast.error('Please enter a valid amount');
+        return;
+      }
+
+      // Create payment record
+      const payment = {
+        id: Date.now(),
+        patientId: user.patientId || user.id,
+        patientName: user.name,
+        patientEmail: user.email,
+        doctorId: user.id, // This would normally come from the diet chart's doctor
+        doctorName: paymentData.doctorName || 'Dr. Johnson',
+        amount: paymentData.amount,
+        service: paymentData.service,
+        date: new Date().toISOString(),
+        status: 'completed',
+        paymentMethod: 'card'
+      };
+
+      // Save to localStorage
+      const existingPayments = JSON.parse(localStorage.getItem('payments') || '[]');
+      existingPayments.push(payment);
+      localStorage.setItem('payments', JSON.stringify(existingPayments));
+
+      // Update state
+      setPayments([...payments, payment]);
+      
+      // Reset form
+      setPaymentData({
+        amount: '',
+        cardNumber: '',
+        cardHolder: '',
+        expiryDate: '',
+        cvv: '',
+        doctorName: '',
+        service: 'Diet Consultation'
+      });
+      setShowPaymentForm(false);
+      
+      toast.success('Payment processed successfully!');
+    };
+
+    const totalSpent = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-foreground">Payment</h2>
+          <button
+            onClick={() => setShowPaymentForm(!showPaymentForm)}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+          >
+            <CreditCard className="w-5 h-5" /> Make Payment
+          </button>
+        </div>
+
+        {/* Payment Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100">Total Spent</p>
+                <p className="text-3xl font-bold mt-2">${totalSpent.toFixed(2)}</p>
+              </div>
+              <DollarSign className="w-12 h-12 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100">Total Payments</p>
+                <p className="text-3xl font-bold mt-2">{payments.length}</p>
+              </div>
+              <CreditCard className="w-12 h-12 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100">Active Plans</p>
+                <p className="text-3xl font-bold mt-2">{dietCharts.length}</p>
+              </div>
+              <FileText className="w-12 h-12 opacity-80" />
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Form */}
+        {showPaymentForm && (
+          <div className="bg-card p-6 rounded-lg shadow-md border border-border">
+            <h3 className="text-xl font-semibold mb-4 text-card-foreground">Payment Details</h3>
+            <form onSubmit={handlePayment} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Amount ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={paymentData.amount}
+                    onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})}
+                    className="w-full p-2 border border-input rounded bg-background text-foreground"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Service</label>
+                  <select
+                    value={paymentData.service}
+                    onChange={(e) => setPaymentData({...paymentData, service: e.target.value})}
+                    className="w-full p-2 border border-input rounded bg-background text-foreground"
+                    required
+                  >
+                    <option value="Diet Consultation">Diet Consultation</option>
+                    <option value="Diet Chart Creation">Diet Chart Creation</option>
+                    <option value="Follow-up Consultation">Follow-up Consultation</option>
+                    <option value="Custom Diet Plan">Custom Diet Plan</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <h4 className="font-semibold mb-3 text-foreground">Card Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="text-sm text-muted-foreground mb-1 block">Card Number</label>
+                    <input
+                      type="text"
+                      maxLength={19}
+                      value={paymentData.cardNumber}
+                      onChange={(e) => setPaymentData({...paymentData, cardNumber: e.target.value.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()})}
+                      className="w-full p-2 border border-input rounded bg-background text-foreground"
+                      placeholder="1234 5678 9012 3456"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Card Holder</label>
+                    <input
+                      type="text"
+                      value={paymentData.cardHolder}
+                      onChange={(e) => setPaymentData({...paymentData, cardHolder: e.target.value})}
+                      className="w-full p-2 border border-input rounded bg-background text-foreground"
+                      placeholder="John Doe"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-1 block">Expiry</label>
+                      <input
+                        type="text"
+                        maxLength={5}
+                        value={paymentData.expiryDate}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/\D/g, '');
+                          if (value.length >= 2) {
+                            value = value.substring(0, 2) + '/' + value.substring(2, 4);
+                          }
+                          setPaymentData({...paymentData, expiryDate: value});
+                        }}
+                        className="w-full p-2 border border-input rounded bg-background text-foreground"
+                        placeholder="MM/YY"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-1 block">CVV</label>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        value={paymentData.cvv}
+                        onChange={(e) => setPaymentData({...paymentData, cvv: e.target.value.replace(/\D/g, '')})}
+                        className="w-full p-2 border border-input rounded bg-background text-foreground"
+                        placeholder="123"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg hover:opacity-90 transition-opacity font-semibold"
+                >
+                  Pay Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentForm(false)}
+                  className="px-6 bg-muted text-muted-foreground py-2 rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Payment History */}
+        <div className="bg-card p-6 rounded-lg shadow-md border border-border">
+          <h3 className="text-xl font-semibold mb-4 text-card-foreground">Payment History</h3>
+          {payments.length === 0 ? (
+            <div className="text-center py-8">
+              <CreditCard className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">No payment history</p>
+              <p className="text-muted-foreground text-sm mt-2">Your payment records will appear here</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {payments.map(payment => (
+                <div key={payment.id} className="bg-muted p-4 rounded-lg hover:bg-accent transition-colors">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="font-semibold text-foreground">{payment.service}</p>
+                      <p className="text-sm text-muted-foreground">{payment.doctorName}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-foreground">${parseFloat(payment.amount).toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(payment.date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-green-600 font-medium">{payment.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const DietPlanView = () => {
     if (!selectedChart) {
       return (
@@ -608,6 +882,15 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
             >
               Progress Tracker
             </button>
+            <button
+              onClick={() => {
+                setActiveTab('payment');
+                setSelectedChart(null);
+              }}
+              className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${activeTab === 'payment' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            >
+              Payment
+            </button>
           </div>
         </div>
 
@@ -615,6 +898,7 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'dietPlans' && <DietPlansList />}
           {activeTab === 'progress' && <ProgressTracker />}
+          {activeTab === 'payment' && <PaymentSection />}
           {selectedChart && <DietPlanView />}
         </div>
       </div>

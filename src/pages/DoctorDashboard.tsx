@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Plus, Search, FileText, Database, TrendingUp, Droplet, Moon, Sun, Activity, LogOut, Users, Stethoscope } from 'lucide-react';
+import { User, Calendar, Plus, Search, FileText, Database, TrendingUp, Droplet, Moon, Sun, Activity, LogOut, Users, Stethoscope, DollarSign, CreditCard } from 'lucide-react';
 import FoodSearch from '@/components/FoodSearch';
 import { Toaster } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,7 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [currentDiet, setCurrentDiet] = useState({ meals: [] });
   const [selectedChartView, setSelectedChartView] = useState(null);
+  const [payments, setPayments] = useState([]);
 
   useEffect(() => {
     const initializeData = () => {
@@ -49,6 +50,11 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
         const chartsData = localStorage.getItem('dietCharts');
         if (chartsData) {
           setDietCharts(JSON.parse(chartsData));
+        }
+
+        const paymentsData = localStorage.getItem('payments');
+        if (paymentsData) {
+          setPayments(JSON.parse(paymentsData));
         }
       } catch (error) {
         console.error('Error initializing data from localStorage:', error);
@@ -809,6 +815,122 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
     );
   };
 
+  const RevenueSection = () => {
+    // Filter payments for this doctor
+    const doctorPayments = payments.filter(p => p.doctorId === user.id);
+    
+    const totalRevenue = doctorPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const totalPatients = new Set(doctorPayments.map(p => p.patientId)).size;
+    const totalCharts = dietCharts.filter(c => c.doctorId === user.id).length;
+    
+    const monthlyRevenue = doctorPayments.reduce((acc, payment) => {
+      const month = new Date(payment.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      if (!acc[month]) acc[month] = 0;
+      acc[month] += parseFloat(payment.amount);
+      return acc;
+    }, {});
+
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-foreground">Revenue Management</h2>
+
+        {/* Revenue Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100">Total Revenue</p>
+                <p className="text-3xl font-bold mt-2">${totalRevenue.toFixed(2)}</p>
+              </div>
+              <DollarSign className="w-12 h-12 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100">Total Patients</p>
+                <p className="text-3xl font-bold mt-2">{totalPatients}</p>
+              </div>
+              <Users className="w-12 h-12 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100">Diet Charts</p>
+                <p className="text-3xl font-bold mt-2">{totalCharts}</p>
+              </div>
+              <FileText className="w-12 h-12 opacity-80" />
+            </div>
+          </div>
+        </div>
+
+        {/* Payment History */}
+        <div className="bg-card p-6 rounded-lg shadow-md border border-border">
+          <h3 className="text-xl font-semibold mb-4 text-card-foreground">Payment History</h3>
+          {doctorPayments.length === 0 ? (
+            <div className="text-center py-8">
+              <CreditCard className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">No payment records yet</p>
+              <p className="text-muted-foreground text-sm mt-2">Patient payments will appear here</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="p-3 text-left text-muted-foreground">Date</th>
+                    <th className="p-3 text-left text-muted-foreground">Patient</th>
+                    <th className="p-3 text-left text-muted-foreground">Service</th>
+                    <th className="p-3 text-left text-muted-foreground">Amount</th>
+                    <th className="p-3 text-left text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {doctorPayments.map(payment => (
+                    <tr key={payment.id} className="border-t border-border hover:bg-muted/50">
+                      <td className="p-3 text-foreground">{new Date(payment.date).toLocaleDateString()}</td>
+                      <td className="p-3 text-foreground">{payment.patientName}</td>
+                      <td className="p-3 text-foreground">{payment.service}</td>
+                      <td className="p-3 text-foreground font-semibold">${parseFloat(payment.amount).toFixed(2)}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          payment.status === 'completed' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {payment.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Monthly Revenue Chart */}
+        {Object.keys(monthlyRevenue).length > 0 && (
+          <div className="bg-card p-6 rounded-lg shadow-md border border-border">
+            <h3 className="text-xl font-semibold mb-4 text-card-foreground">Monthly Revenue</h3>
+            <div className="space-y-3">
+              {Object.entries(monthlyRevenue)
+                .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+                .reverse()
+                .map(([month, amount]) => (
+                  <div key={month} className="flex items-center justify-between p-3 bg-muted rounded">
+                    <span className="font-medium text-foreground">{month}</span>
+                    <span className="text-lg font-bold text-primary">${(amount as number).toFixed(2)}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const FoodDatabase = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
@@ -943,6 +1065,12 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
               View All Charts
             </button>
             <button
+              onClick={() => setActiveTab('revenue')}
+              className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${activeTab === 'revenue' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            >
+              Revenue
+            </button>
+            <button
               onClick={() => setActiveTab('foodDb')}
               className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${activeTab === 'foodDb' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
             >
@@ -956,6 +1084,7 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
           {activeTab === 'patients' && <PatientManagement />}
           {activeTab === 'dietChart' && <DietChartCreation />}
           {activeTab === 'viewCharts' && <ViewAllDietCharts />}
+          {activeTab === 'revenue' && <RevenueSection />}
           {activeTab === 'foodDb' && <FoodDatabase />}
         </div>
       </div>
