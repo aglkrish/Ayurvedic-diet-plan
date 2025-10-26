@@ -11,6 +11,7 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
   const [dietCharts, setDietCharts] = useState([]);
   const [selectedChart, setSelectedChart] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [progressEntries, setProgressEntries] = useState([]);
 
   useEffect(() => {
     const loadDietCharts = () => {
@@ -31,7 +32,19 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
       }
     };
 
+    const loadProgress = () => {
+      try {
+        const progressData = localStorage.getItem(`progress_${user.patientId || user.id}`);
+        if (progressData) {
+          setProgressEntries(JSON.parse(progressData));
+        }
+      } catch (error) {
+        console.error('Error loading progress:', error);
+      }
+    };
+
     loadDietCharts();
+    loadProgress();
   }, [user]);
 
   const getMealTimeIcon = (mealType: string) => {
@@ -197,6 +210,210 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
       </div>
     </div>
   );
+
+  const ProgressTracker = () => {
+    const [newEntry, setNewEntry] = useState({
+      date: new Date().toISOString().split('T')[0],
+      weight: '',
+      mealsCompleted: 0,
+      energyLevel: 5,
+      notes: ''
+    });
+
+    const handleAddProgress = (e) => {
+      e.preventDefault();
+      if (!newEntry.weight && !newEntry.notes) return;
+
+      const entry = {
+        ...newEntry,
+        id: Date.now(),
+        weight: newEntry.weight || null,
+        energyLevel: parseInt(newEntry.energyLevel),
+        mealsCompleted: parseInt(newEntry.mealsCompleted)
+      };
+
+      const updated = [entry, ...progressEntries];
+      setProgressEntries(updated);
+      localStorage.setItem(`progress_${user.patientId || user.id}`, JSON.stringify(updated));
+
+      setNewEntry({
+        date: new Date().toISOString().split('T')[0],
+        weight: '',
+        mealsCompleted: 0,
+        energyLevel: 5,
+        notes: ''
+      });
+    };
+
+    const totalMealsPlanned = dietCharts.length > 0 
+      ? dietCharts[dietCharts.length - 1].meals.length 
+      : 0;
+
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-foreground">Progress Tracker</h2>
+
+        {/* Add Progress Entry */}
+        <div className="bg-card p-6 rounded-lg shadow-md border border-border">
+          <h3 className="text-xl font-semibold mb-4 text-card-foreground">Log Today's Progress</h3>
+          <form onSubmit={handleAddProgress} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Date</label>
+              <input
+                type="date"
+                value={newEntry.date}
+                onChange={(e) => setNewEntry({...newEntry, date: e.target.value})}
+                className="w-full p-2 border border-input rounded bg-background text-foreground"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Weight (kg) - Optional</label>
+              <input
+                type="number"
+                step="0.1"
+                placeholder="e.g., 70.5"
+                value={newEntry.weight}
+                onChange={(e) => setNewEntry({...newEntry, weight: e.target.value})}
+                className="w-full p-2 border border-input rounded bg-background text-foreground"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Meals Completed (out of {totalMealsPlanned})</label>
+              <input
+                type="number"
+                min="0"
+                max={totalMealsPlanned}
+                value={newEntry.mealsCompleted}
+                onChange={(e) => setNewEntry({...newEntry, mealsCompleted: e.target.value})}
+                className="w-full p-2 border border-input rounded bg-background text-foreground"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Energy Level (1-10)</label>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={newEntry.energyLevel}
+                onChange={(e) => setNewEntry({...newEntry, energyLevel: e.target.value})}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>Low (1)</span>
+                <span className="font-semibold text-primary">{newEntry.energyLevel}</span>
+                <span>High (10)</span>
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm text-muted-foreground mb-1 block">Notes (How are you feeling?)</label>
+              <textarea
+                value={newEntry.notes}
+                onChange={(e) => setNewEntry({...newEntry, notes: e.target.value})}
+                placeholder="Add any observations, symptoms, or feedback..."
+                rows={3}
+                className="w-full p-2 border border-input rounded bg-background text-foreground"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground py-2 rounded-lg hover:opacity-90 transition-opacity font-semibold"
+              >
+                Add Progress Entry
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Progress History */}
+        <div className="bg-card p-6 rounded-lg shadow-md border border-border">
+          <h3 className="text-xl font-semibold mb-4 text-card-foreground">Progress History</h3>
+          {progressEntries.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No progress entries yet. Start tracking your journey!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {progressEntries.map(entry => (
+                <div key={entry.id} className="bg-muted p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="font-semibold text-foreground">{new Date(entry.date).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}</p>
+                    </div>
+                    <div className="text-right">
+                      {entry.weight && (
+                        <p className="text-sm font-medium text-foreground">Weight: {entry.weight} kg</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="bg-green-50 p-2 rounded text-center">
+                      <p className="text-xs text-green-600">Meals Completed</p>
+                      <p className="text-lg font-bold text-green-700">{entry.mealsCompleted}/{totalMealsPlanned}</p>
+                    </div>
+                    <div className="bg-blue-50 p-2 rounded text-center">
+                      <p className="text-xs text-blue-600">Energy Level</p>
+                      <p className="text-lg font-bold text-blue-700">{entry.energyLevel}/10</p>
+                    </div>
+                    <div className="bg-purple-50 p-2 rounded text-center">
+                      <p className="text-xs text-purple-600">Completion</p>
+                      <p className="text-lg font-bold text-purple-700">
+                        {totalMealsPlanned > 0 ? Math.round((entry.mealsCompleted / totalMealsPlanned) * 100) : 0}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {entry.notes && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-sm text-muted-foreground"><strong>Notes:</strong> {entry.notes}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Progress Statistics */}
+        {progressEntries.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg border border-border">
+            <h3 className="text-xl font-semibold mb-4 text-foreground">Overall Statistics</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-lg text-center">
+                <p className="text-2xl font-bold text-primary">{progressEntries.length}</p>
+                <p className="text-sm text-muted-foreground">Days Tracked</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg text-center">
+                <p className="text-2xl font-bold text-primary">
+                  {Math.round(progressEntries.reduce((sum, e) => sum + (e.mealsCompleted / totalMealsPlanned), 0) / progressEntries.length * 100)}%
+                </p>
+                <p className="text-sm text-muted-foreground">Avg. Completion</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg text-center">
+                <p className="text-2xl font-bold text-primary">
+                  {Math.round(progressEntries.reduce((sum, e) => sum + e.energyLevel, 0) / progressEntries.length * 10) / 10}
+                </p>
+                <p className="text-sm text-muted-foreground">Avg. Energy</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg text-center">
+                <p className="text-2xl font-bold text-primary">
+                  {progressEntries.reduce((sum, e) => sum + e.mealsCompleted, 0)}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Meals</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const DietPlanView = () => {
     if (!selectedChart) {
@@ -382,12 +599,22 @@ const PatientDashboard = ({ user, onLogout }: PatientDashboardProps) => {
             >
               Diet Plans ({dietCharts.length})
             </button>
+            <button
+              onClick={() => {
+                setActiveTab('progress');
+                setSelectedChart(null);
+              }}
+              className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${activeTab === 'progress' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            >
+              Progress Tracker
+            </button>
           </div>
         </div>
 
         <div>
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'dietPlans' && <DietPlansList />}
+          {activeTab === 'progress' && <ProgressTracker />}
           {selectedChart && <DietPlanView />}
         </div>
       </div>

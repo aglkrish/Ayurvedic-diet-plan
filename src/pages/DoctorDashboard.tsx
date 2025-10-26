@@ -16,6 +16,7 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
   const [dietCharts, setDietCharts] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [currentDiet, setCurrentDiet] = useState({ meals: [] });
+  const [selectedChartView, setSelectedChartView] = useState(null);
 
   useEffect(() => {
     const initializeData = () => {
@@ -716,6 +717,98 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
     );
   };
 
+  const ViewAllDietCharts = () => {
+    const groupedCharts = dietCharts.reduce((acc, chart) => {
+      if (!acc[chart.patientName]) {
+        acc[chart.patientName] = [];
+      }
+      acc[chart.patientName].push(chart);
+      return acc;
+    }, {});
+
+    if (selectedChartView) {
+      return (
+        <div className="space-y-6">
+          <button
+            onClick={() => setSelectedChartView(null)}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
+          >
+            ← Back to all charts
+          </button>
+          <div className="bg-card p-6 rounded-lg shadow-md border border-border">
+            <h3 className="text-2xl font-bold mb-4 text-foreground">Diet Chart Details</h3>
+            <p className="text-muted-foreground mb-6">Patient: {selectedChartView.patientName} | Date: {selectedChartView.date}</p>
+            
+            <div className="grid grid-cols-5 gap-4 mb-6">
+              {['calories', 'protein', 'carbs', 'fat', 'fiber'].map(nutrient => (
+                <div key={nutrient} className="bg-accent p-4 rounded text-center">
+                  <p className="text-xs text-muted-foreground uppercase">{nutrient}</p>
+                  <p className="text-xl font-bold text-accent-foreground mt-1">
+                    {selectedChartView.totalNutrients[nutrient].toFixed(1)}{nutrient === 'calories' ? '' : 'g'}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-semibold text-lg text-foreground">Meals:</h4>
+              {selectedChartView.meals.map((meal, idx) => (
+                <div key={idx} className="bg-muted p-4 rounded">
+                  <p className="font-medium text-foreground">{meal.food.name} - {meal.quantity}g</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {meal.mealType} | {meal.nutrients.calories} cal | {meal.nutrients.protein}g protein
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-foreground">All Patient Diet Charts</h2>
+          <div className="bg-accent px-4 py-2 rounded border border-border">
+            <p className="text-sm text-muted-foreground">Total Charts: <span className="font-semibold text-accent-foreground">{dietCharts.length}</span></p>
+          </div>
+        </div>
+
+        {dietCharts.length === 0 ? (
+          <div className="text-center py-12 bg-card p-6 rounded-lg border border-border">
+            <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground text-lg">No diet charts created yet</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(groupedCharts).map(([patientName, charts]) => (
+              <div key={patientName} className="bg-card p-6 rounded-lg shadow-md border border-border">
+                <h3 className="text-xl font-semibold mb-4 text-foreground">{patientName}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {charts.map(chart => (
+                    <div 
+                      key={chart.id}
+                      className="bg-muted p-4 rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() => setSelectedChartView(chart)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-sm text-muted-foreground">{chart.date}</span>
+                        <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">{chart.meals.length} meals</span>
+                      </div>
+                      <p className="font-medium text-foreground mb-2">{chart.totalNutrients.calories.toFixed(0)} calories</p>
+                      <p className="text-xs text-muted-foreground">Click to view details</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const FoodDatabase = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
@@ -844,6 +937,12 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
               Diet Chart Creation
             </button>
             <button
+              onClick={() => setActiveTab('viewCharts')}
+              className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${activeTab === 'viewCharts' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            >
+              View All Charts
+            </button>
+            <button
               onClick={() => setActiveTab('foodDb')}
               className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${activeTab === 'foodDb' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-primary'}`}
             >
@@ -856,6 +955,7 @@ const DoctorDashboard = ({ user, onLogout }: DoctorDashboardProps) => {
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'patients' && <PatientManagement />}
           {activeTab === 'dietChart' && <DietChartCreation />}
+          {activeTab === 'viewCharts' && <ViewAllDietCharts />}
           {activeTab === 'foodDb' && <FoodDatabase />}
         </div>
       </div>
